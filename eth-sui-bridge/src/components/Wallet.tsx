@@ -12,12 +12,13 @@ const Wallet: React.FC = () => {
   };
 
   return (
-    <div style={{ textAlign: "center", marginBottom: "20px" }}>
-      <h2>Connect to MetaMask</h2>
+    <div>
       {walletAddress ? (
-        <p>Connected Wallet: {walletAddress}</p>
+        <p>Connected: {walletAddress}</p>
       ) : (
-        <button onClick={handleConnect}>Connect Wallet</button>
+        <button className="connect-metamask" onClick={handleConnect}>
+          Connect MetaMask
+        </button>
       )}
     </div>
   );

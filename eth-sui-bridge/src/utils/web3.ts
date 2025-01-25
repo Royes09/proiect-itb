@@ -179,3 +179,40 @@ export const connectWallet = async () => {
     return null;
   }
 };
+
+// 🔹 Funcție pentru a arde IBT (Ethereum)
+export const burnIBT = async (amount: number) => {
+  try {
+    const contract = getEthereumContract();
+    if (!contract) throw new Error("Ethereum contract not found");
+
+    const signer = await contract.signer;
+    const userAddress = await signer.getAddress();
+    
+    const tx = await contract.burn(userAddress, ethers.parseUnits(amount.toString(), 18));
+    await tx.wait();
+
+    console.log(`🔥 Burned ${amount} IBT on Ethereum`);
+    return tx;
+  } catch (error) {
+    console.error("Error burning IBT:", error);
+    throw error;
+  }
+};
+
+// 🔹 Funcție pentru a mintui IBT (Ethereum)
+export const mintIBT = async (recipient: string, amount: number) => {
+  try {
+    const contract = getEthereumContract();
+    if (!contract) throw new Error("Ethereum contract not found");
+
+    const tx = await contract.mint(recipient, ethers.parseUnits(amount.toString(), 18));
+    await tx.wait();
+
+    console.log(`✅ Minted ${amount} IBT on Ethereum`);
+    return tx;
+  } catch (error) {
+    console.error("Error minting IBT:", error);
+    throw error;
+  }
+};
