@@ -1,44 +1,26 @@
 import { ethers } from "ethers";
 
-const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // Schimbă cu adresa contractului tău
+// Adresa contractului IBT pe Ethereum:
+const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; 
+
+// ABI-ul contractului IBT:
 const contractABI = [
-  
   {
     "inputs": [],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
     "name": "balanceOf",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "_from",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_amount",
-        "type": "uint256"
-      }
+      { "internalType": "address", "name": "_from", "type": "address" },
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" }
     ],
     "name": "burn",
     "outputs": [],
@@ -48,128 +30,47 @@ const contractABI = [
   {
     "inputs": [],
     "name": "decimals",
-    "outputs": [
-      {
-        "internalType": "uint8",
-        "name": "",
-        "type": "uint8"
-      }
-    ],
+    "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "_to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_amount",
-        "type": "uint256"
-      }
+      { "internalType": "address", "name": "_to", "type": "address" },
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" }
     ],
     "name": "mint",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
-  {
-    "inputs": [],
-    "name": "name",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "symbol",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "transfer",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
 ];
 
-export const getEthereumContract = () => {
+function getReadContract() {
   if (typeof window !== "undefined" && (window as any).ethereum) {
     const provider = new ethers.BrowserProvider((window as any).ethereum);
-    const signer = provider.getSigner();
+    return new ethers.Contract(contractAddress, contractABI, provider);
+  }
+  return null;
+}
+
+async function getWriteContract() {
+  if (typeof window !== "undefined" && (window as any).ethereum) {
+    const provider = new ethers.BrowserProvider((window as any).ethereum);
+    const signer = await provider.getSigner();
     return new ethers.Contract(contractAddress, contractABI, signer);
   }
   return null;
-};
+}
 
-export const connectWallet = async () => {
+
+export const connectWallet = async (): Promise<string | null> => {
   if (typeof window !== "undefined" && (window as any).ethereum) {
     try {
       const accounts = await (window as any).ethereum.request({
         method: "eth_requestAccounts",
       });
-      return accounts[0]; // Returnează adresa contului conectat
+      return accounts[0] || null;
     } catch (error) {
       console.error("Error connecting wallet:", error);
       return null;
@@ -180,18 +81,21 @@ export const connectWallet = async () => {
   }
 };
 
-// 🔹 Funcție pentru a arde IBT (Ethereum)
 export const burnIBT = async (amount: number) => {
   try {
-    const contract = getEthereumContract();
-    if (!contract) throw new Error("Ethereum contract not found");
+    const contract = await getWriteContract();
+    if (!contract) throw new Error("Ethereum contract not found (burn)");
 
-    const signer = await contract.signer;
+    const provider = new ethers.BrowserProvider((window as any).ethereum);
+    const signer = await provider.getSigner();
     const userAddress = await signer.getAddress();
-    
-    const tx = await contract.burn(userAddress, ethers.parseUnits(amount.toString(), 18));
-    await tx.wait();
 
+    const decimals = 18;
+    const tx = await contract.burn(
+      userAddress,
+      ethers.parseUnits(amount.toString(), decimals)
+    );
+    await tx.wait();
     console.log(`🔥 Burned ${amount} IBT on Ethereum`);
     return tx;
   } catch (error) {
@@ -199,20 +103,35 @@ export const burnIBT = async (amount: number) => {
     throw error;
   }
 };
-
-// 🔹 Funcție pentru a mintui IBT (Ethereum)
 export const mintIBT = async (recipient: string, amount: number) => {
   try {
-    const contract = getEthereumContract();
-    if (!contract) throw new Error("Ethereum contract not found");
+    const contract = await getWriteContract();
+    if (!contract) throw new Error("Ethereum contract not found (mint)");
 
-    const tx = await contract.mint(recipient, ethers.parseUnits(amount.toString(), 18));
+    const decimals = 18;
+    const tx = await contract.mint(
+      recipient,
+      ethers.parseUnits(amount.toString(), decimals)
+    );
     await tx.wait();
-
-    console.log(`✅ Minted ${amount} IBT on Ethereum`);
+    console.log(`✅ Minted ${amount} IBT on Ethereum -> to ${recipient}`);
     return tx;
   } catch (error) {
     console.error("Error minting IBT:", error);
     throw error;
+  }
+};
+
+export const getIBTBalance = async (address: string): Promise<number> => {
+  try {
+    const contract = getReadContract();
+    if (!contract) throw new Error("Ethereum contract not found (balance)");
+
+    const decimals = 18;
+    const balanceBN = await contract.balanceOf(address);
+    return Number(ethers.formatUnits(balanceBN, decimals));
+  } catch (error) {
+    console.error("Error getting IBT balance:", error);
+    return 0;
   }
 };

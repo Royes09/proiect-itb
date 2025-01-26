@@ -1,17 +1,62 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SuiClientProvider, WalletProvider } from "@mysten/dapp-kit";
 import SuiWallet from "./components/SuiWallet";
 import Wallet from "./components/Wallet";
-import { burnIBT, mintIBT } from "./utils/web3";
-import { burnIBTToken, mintIBTToken } from "./utils/sui";
+
+// Ethereum side
+import {
+  burnIBT,
+  mintIBT,
+  getIBTBalance,
+} from "./utils/web3";
+
+// Sui side
+import {
+  burnIBTToken,
+  mintIBTToken,
+  getIBTTokenBalance,
+} from "./utils/sui";
+
 import "./styles.css";
 
 const queryClient = new QueryClient();
 
 const App: React.FC = () => {
+
+  const [ethWalletAddress, setEthWalletAddress] = useState<string>("");
+  const [suiWalletAddress, setSuiWalletAddress] = useState<string>("");
+
+  const [ethBalance, setEthBalance] = useState<number>(0);
+  const [suiBalance, setSuiBalance] = useState<number>(0);
+
   const [amount, setAmount] = useState("");
-  const [direction, setDirection] = useState<"MetaMaskToSui" | "SuiToMetaMask">("MetaMaskToSui");
+  const [direction, setDirection] =
+    useState<"MetaMaskToSui" | "SuiToMetaMask">("MetaMaskToSui");
+
+  useEffect(() => {
+    const fetchBalances = async () => {
+      try {
+        if (ethWalletAddress) {
+          const bal = await getIBTBalance(ethWalletAddress);
+          setEthBalance(bal);
+        } else {
+          setEthBalance(0);
+        }
+
+        if (suiWalletAddress) {
+          const bal = await getIBTTokenBalance(suiWalletAddress);
+          setSuiBalance(bal);
+        } else {
+          setSuiBalance(0);
+        }
+      } catch (error) {
+        console.error("Error fetching balances:", error);
+      }
+    };
+
+    fetchBalances();
+  }, [ethWalletAddress, suiWalletAddress]);
 
   const handleTransfer = async () => {
     if (!amount || Number(amount) <= 0) {
@@ -25,13 +70,14 @@ const App: React.FC = () => {
         await burnIBT(Number(amount));
 
         console.log(`Minting ${amount} IBTToken on Sui...`);
-        await mintIBTToken("0x412af6e1acd5aa353f6143791ecf79051a333f6288b5093cbbd574bd79fbca66", Number(amount));
+        await mintIBTToken(suiWalletAddress, Number(amount));
+
       } else {
         console.log(`Burning ${amount} IBTToken on Sui...`);
-        await burnIBTToken("0x412af6e1acd5aa353f6143791ecf79051a333f6288b5093cbbd574bd79fbca66", Number(amount));
+        await burnIBTToken(suiWalletAddress, Number(amount));
 
         console.log(`Minting ${amount} IBT on Ethereum...`);
-        await mintIBT("0x5FbDB2315678afecb367f032d93F642f64180aa3", Number(amount));
+        await mintIBT(ethWalletAddress, Number(amount));
       }
 
       alert("Transfer successful!");
@@ -47,28 +93,46 @@ const App: React.FC = () => {
         <WalletProvider autoConnect>
           <div className="container">
             <h1>IBT / IBTToken Bridge</h1>
-            <div className="wallet-buttons">
-              <Wallet />
-              <SuiWallet />
+            <div className="wallet-section">
+              <div className="wallet-box">
+                <h2>Ethereum Wallet</h2>
+                <Wallet onAddressChange={(addr) => setEthWalletAddress(addr)} />
+                <div className="balance">
+                  <span className="balance-label">IBT Balance:</span>
+                  <span>{ethBalance}</span>
+                </div>
+              </div>
+              <div className="wallet-box">
+                <h2>Sui Wallet</h2>
+                <SuiWallet onAddressChange={(addr) => setSuiWalletAddress(addr)} />
+                <div className="balance">
+                  <span className="balance-label">IBTToken Balance:</span>
+                  <span>{suiBalance}</span>
+                </div>
+              </div>
             </div>
-
             <div className="transfer-controls">
-              <label>
-                Amount:
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.0"
-                />
-              </label>
+              <label htmlFor="amount-input">Amount:</label>
+              <input
+                id="amount-input"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.0"
+              />
             </div>
 
             <div className="transfer-buttons">
-              <button onClick={() => setDirection("MetaMaskToSui")} className={direction === "MetaMaskToSui" ? "active" : ""}>
+              <button
+                onClick={() => setDirection("MetaMaskToSui")}
+                className={direction === "MetaMaskToSui" ? "active" : ""}
+              >
                 MetaMask → Sui
               </button>
-              <button onClick={() => setDirection("SuiToMetaMask")} className={direction === "SuiToMetaMask" ? "active" : ""}>
+              <button
+                onClick={() => setDirection("SuiToMetaMask")}
+                className={direction === "SuiToMetaMask" ? "active" : ""}
+              >
                 Sui → MetaMask
               </button>
             </div>
